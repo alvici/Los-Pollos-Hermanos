@@ -335,7 +335,7 @@
         }
 
         .play-count-badge {
-            color: var(--accent);
+            color: white; /* Changed to white */
             font-weight: 600;
         }
 
@@ -374,6 +374,97 @@
             background: var(--bg-card);
             border-radius: 3px;
         }
+
+        .controls-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .controls-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            border-bottom: 1px solid var(--grid-line);
+            padding-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-grow: 1;
+            gap: 8px;
+            direction: rtl; /* For right-to-left order */
+        }
+
+        .filter-group > * {
+            direction: ltr;
+            flex: 1; /* Full width distribution */
+        }
+
+        .sort-group {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .control-btn {
+            font-size: 11px;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+            background: var(--bg-card);
+            color: white; /* Changed to white by default */
+            text-align: center;
+            display: flex;
+            flex-direction: row; /* Horizontal layout */
+            align-items: center;
+            justify-content: center;
+            min-height: 44px;
+            gap: 4px;
+        }
+
+        .control-btn .count-label {
+            font-size: 10px;
+            opacity: 0.9;
+            display: none;
+        }
+
+        .control-btn.active .count-label {
+            display: inline;
+        }
+
+        .control-btn:hover {
+            color: white;
+            border-color: rgba(255,255,255,0.2);
+        }
+
+        .control-btn.active-sort {
+            background: var(--accent);
+            color: #000;
+        }
+
+        /* Filter Colors */
+        .filter-btn {
+            opacity: 0.6;
+        }
+
+        .filter-btn.active {
+            opacity: 1;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+            border-color: white;
+            color: white;
+        }
+
+        .f-1 { background: #4b5563 !important; } /* Gray */
+        .f-2 { background: #2563eb !important; } /* Blue */
+        .f-3 { background: #9333ea !important; } /* Purple */
+        .f-4 { background: #f59e0b !important; } /* Yellow/Orange */
+        .f-5 { background: #dc2626 !important; } /* Red */
 
         @media (max-width: 768px) {
             .layout-container {
@@ -455,6 +546,38 @@
                 <input type="text" id="gameSearchMobile" class="search-bar" placeholder="Cari koleksi game...">
             </div>
 
+            <div class="controls-container">
+                <div class="controls-row">
+                    <div class="sort-group">
+                        <button class="control-btn active-sort" id="sortName">A-Z</button>
+                        <button class="control-btn" id="sortPrice">Harga ↑</button>
+                    </div>
+                    <div class="filter-group">
+                        <!-- Right to left: 1, 2, 3, 4, 5 -->
+                        <button class="control-btn filter-btn f-1" data-filter="1">
+                            <span>Tanpa Harga</span>
+                            <span class="count-label" id="count-1">| 0 games</span>
+                        </button>
+                        <button class="control-btn filter-btn f-2" data-filter="2">
+                            <span>1 - 99rb</span>
+                            <span class="count-label" id="count-2">| 0 games</span>
+                        </button>
+                        <button class="control-btn filter-btn f-3" data-filter="3">
+                            <span>99rb - 299rb</span>
+                            <span class="count-label" id="count-3">| 0 games</span>
+                        </button>
+                        <button class="control-btn filter-btn f-4" data-filter="4">
+                            <span>299rb - 490rb</span>
+                            <span class="count-label" id="count-4">| 0 games</span>
+                        </button>
+                        <button class="control-btn filter-btn f-5" data-filter="5">
+                            <span>490rb+</span>
+                            <span class="count-label" id="count-5">| 0 games</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <div class="game-grid" id="gameGrid">
                 <!-- Game cards rendered via JS -->
             </div>
@@ -472,6 +595,14 @@
 
     <script>
         let allGames = [];
+        let currentSort = 'nameAsc';
+        let activeFilters = [];
+
+        function parsePrice(priceStr) {
+            if (!priceStr) return 0;
+            const numericValue = priceStr.replace(/[^0-9]/g, '');
+            return parseInt(numericValue, 10) || 0;
+        }
 
         async function initApp() {
             try {
@@ -489,9 +620,53 @@
                 }
 
                 allGames = games;
-                // Sorting by alphabet (A-Z)
-                allGames.sort((a, b) => a.name.localeCompare(b.name));
                 
+                // Set up control listeners
+                const btnName = document.getElementById('sortName');
+                const btnPrice = document.getElementById('sortPrice');
+
+                btnName.addEventListener('click', () => {
+                    btnPrice.classList.remove('active-sort');
+                    btnName.classList.add('active-sort');
+                    
+                    if (currentSort === 'nameAsc') {
+                        currentSort = 'nameDesc';
+                        btnName.textContent = 'Z-A';
+                    } else {
+                        currentSort = 'nameAsc';
+                        btnName.textContent = 'A-Z';
+                    }
+                    renderGames();
+                });
+
+                btnPrice.addEventListener('click', () => {
+                    btnName.classList.remove('active-sort');
+                    btnPrice.classList.add('active-sort');
+                    
+                    if (currentSort === 'priceAsc') {
+                        currentSort = 'priceDesc';
+                        btnPrice.textContent = 'Harga ↓';
+                    } else {
+                        currentSort = 'priceAsc';
+                        btnPrice.textContent = 'Harga ↑';
+                    }
+                    renderGames();
+                });
+
+                document.querySelectorAll('.filter-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const filterId = parseInt(btn.dataset.filter);
+                        if (activeFilters.includes(filterId)) {
+                            activeFilters = activeFilters.filter(id => id !== filterId);
+                            btn.classList.remove('active');
+                        } else {
+                            activeFilters.push(filterId);
+                            btn.classList.add('active');
+                        }
+                        renderGames();
+                    });
+                });
+
                 // Hardcoded stats based on user request
                 document.getElementById('totalGamesStat').textContent = "450";
                 const valuePill = document.querySelector('.stats-header .stat-pill:nth-child(2) .stat-value');
@@ -537,9 +712,50 @@
         function renderGames() {
             const searchVal = (searchHeader.value || searchMobile.value).toLowerCase();
             
-            const filtered = allGames.filter(g => {
-                return g.name.toLowerCase().includes(searchVal);
+            // Update filter counts
+            const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+            allGames.forEach(g => {
+                const price = parsePrice(g.price);
+                if (price === 0) counts[1]++;
+                else if (price >= 1 && price <= 99000) counts[2]++;
+                else if (price > 99000 && price <= 299000) counts[3]++;
+                else if (price > 299000 && price <= 490000) counts[4]++;
+                else if (price > 490000) counts[5]++;
             });
+            Object.keys(counts).forEach(id => {
+                const el = document.getElementById(`count-${id}`);
+                if (el) el.textContent = `| ${counts[id]} games`;
+            });
+
+            let filtered = allGames.filter(g => {
+                const matchesSearch = g.name.toLowerCase().includes(searchVal);
+                
+                if (activeFilters.length === 0) return matchesSearch;
+
+                // Price filtering logic
+                const priceNum = parsePrice(g.price);
+                const matchesFilter = activeFilters.some(filterId => {
+                    if (filterId === 1) return priceNum === 0;
+                    if (filterId === 2) return priceNum >= 1 && priceNum <= 99000;
+                    if (filterId === 3) return priceNum > 99000 && priceNum <= 299000;
+                    if (filterId === 4) return priceNum > 299000 && priceNum <= 490000;
+                    if (filterId === 5) return priceNum > 490000;
+                    return false;
+                });
+
+                return matchesSearch && matchesFilter;
+            });
+
+            // Sorting logic
+            if (currentSort === 'nameAsc') {
+                filtered.sort((a, b) => a.name.localeCompare(b.name));
+            } else if (currentSort === 'nameDesc') {
+                filtered.sort((a, b) => b.name.localeCompare(a.name));
+            } else if (currentSort === 'priceAsc') {
+                filtered.sort((a, b) => parsePrice(a.price) - parsePrice(b.price));
+            } else if (currentSort === 'priceDesc') {
+                filtered.sort((a, b) => parsePrice(b.price) - parsePrice(a.price));
+            }
 
             if (filtered.length === 0) {
                 grid.style.display = 'none';
@@ -559,7 +775,7 @@
                         <div class="game-name text-white font-semibold">${game.name}</div>
                         <div class="game-meta">
                             <span>Game ID: ${game.id}</span>
-                            <span class="play-count-badge text-emerald-400 font-mono">${game.price}</span>
+                            <span class="play-count-badge font-mono">${game.price}</span>
                         </div>
                     </div>
                 </div>
